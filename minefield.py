@@ -112,7 +112,7 @@ class Game(object):
         pygame.mixer.music.set_volume(1.0)
 
     def init(self):
-        self.player_anim = PlayerAnimation(self, [DEAD_PLAYER, EXPLOSION, DEBRIS], 10, 2, PLAYER)
+        self.player_anim = PlayerAnimation(self, [DEAD_PLAYER, EXPLOSION, DEBRIS], 20, 1, PLAYER)
         self.floater_timer = Timer(self, 150)
         self.hp_color = TextColor(self, [RED, WHITE], 50, 2, WHITE)
         self.go_color = TextColor(self, [WHITE, RED], 50, math.inf, BLACK)
@@ -120,7 +120,7 @@ class Game(object):
         self.vd_color = TextColor(self, [(55 + b * 10, 55 + b * 10, 255) for b in range(20, 0, -1)], 20, 1, WHITE)
         self.floater_color = TextColor(self,[RED, WHITE], 20, math.inf, WHITE)
         self.title_shake = Shakes(self, char_width // 2, 80)
-        self.player_shake = Shakes(self, char_height // 4, 20)
+        self.player_shake = Shakes(self, char_height // 2, 20)
         self.offset = Move(self, (- char_height, 0, char_height // 8), 1)
         self.hp_floater = Move(self, (- char_height, - 2 * char_height, - 1), 5)
         self.animations = [
@@ -166,6 +166,8 @@ class Game(object):
                 self.go_color.start()
                 self.vd_color.start()
                 self.player_anim.static_frame = NONE
+                self.player_anim.delay = 30
+                self.player_anim.loops = 2
                 self.vd_color.static_frame = BLUE
                 pygame.mixer.Channel(0).play(diving_sound)
                 pygame.mixer.Channel(0).queue(dying_sound)
@@ -486,8 +488,8 @@ def main():
                 for dx in range(-1, 2):
                     for dy in range(-1, 2):
                         div = random.randint(3, 5)
-                        window.blit(tile[game.player_anim.value], (field_left + char_width + game.current_position * (3 * char_width) + dx * char_width // div, base_line + offset + game.player_shake.value + dy * char_height // div))
-            else:
+                        window.blit(tile[game.player_anim.value], (field_left + char_width + game.current_position * (3 * char_width) + game.player_shake.value * dx, base_line + offset + game.player_shake.value * dy))
+            else: # + dx * char_width // div , + dy * char_height // div
                 window.blit(tile[game.player_anim.value], (field_left + char_width + game.current_position * (3 * char_width), base_line + offset + game.player_shake.value))
 
 
@@ -495,9 +497,10 @@ def main():
                 sign = "" if game.last_hit < 0 else "+"
                 window.blit(git_blit(f"{sign}{game.last_hit}", color = game.floater_color.value), (field_left + char_width + game.current_position * (3 * char_width), base_line + offset + game.hp_floater.value))
 
-            health_color = BLUE #(200 - max(game.hit_points, 0), max(game.hit_points, 0) // 2, max(game.hit_points, 0) * 2, 255)
-            for color in [health_color, WHITE]:
-                window.blit(git_blit("M I N E F I E L D", color = color, size = char_size * 2), (window_width // 2 - char_width * 17 + game.title_shake.value, char_height * 1 + game.title_shake.value * random.randint(-1, 1)))
+            # health_color = (200 - max(game.hit_points, 0), max(game.hit_points, 0) // 2, max(game.hit_points, 0) * 2, 255)
+            for color in [BLUE, WHITE]:
+                shake_mult = (100 - max(game.hit_points, 0)) / 100
+                window.blit(git_blit("M I N E F I E L D", color = color, size = char_size * 2), (window_width // 2 - char_width * 17 + game.title_shake.value * shake_mult, char_height * 1 + game.title_shake.value * shake_mult * random.randint(-1, 1)))
             window.blit(git_blit("an unfair mini-game", color = GREY), (window_width // 2 - char_width * 19 / 2, char_height * 3))
 
             window.blit(git_blit(f"HP: {game.hit_points}", color = game.hp_color.value), (left_panel, base_line - char_height * 1))
@@ -511,7 +514,6 @@ def main():
             window.blit(git_blit(game.msg, color = game.msg_color.value), (right_panel, base_line + char_height * 2))
             
             pygame.display.flip()
-            redraw = False
 
         process_events()
         game.tick()
