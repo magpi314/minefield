@@ -19,4 +19,5 @@ def build_tiles(size):
     tile[DEBRIS] = git_blit("#", color=(255, 50, 0), size=size)
     tile[NONE] = pygame.Surface((0, 0))
     tile[DEAD_PLAYER] = git_blit("@", color=(255, 255, 255), rotate=180, size=size)
+    tile[MASK] = git_blit("...", color = (205, 205, 255, 255), bg_color = BLACK, size = size)
     return tile

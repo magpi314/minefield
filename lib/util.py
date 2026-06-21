@@ -8,6 +8,8 @@ def git_blit(text, font_name="monospace", color=WHITE, bg_color=None, size=1, ro
     render_surface = pygame.Surface(
         (width * len(text), size), pygame.SRCALPHA
     ).convert_alpha()
+    if bg_color:
+        render_surface.fill(bg_color)
     for index, chr in enumerate(text):
         c = color if type(color) == tuple else color[index % len(color)]
         text_surface = font.render(chr, True, c, bg_color)

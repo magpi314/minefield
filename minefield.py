@@ -1,7 +1,8 @@
 import random
 import pygame
 import os
-import math
+import json
+import lib.audio as audio
 
 pygame.init()
 
@@ -10,7 +11,6 @@ from lib.game import Game
 from lib.animations import *
 from lib.tiles import build_tiles
 from lib.util import git_blit
-
 
 # TODO: Add a volume constant?
 
@@ -61,6 +61,8 @@ def main():
     big_mines.set_alpha(30)
     big_powerup.set_alpha(30)
 
+    channelwidth = 9
+
     for x in range(-100, window_width + 100, big_empty.get_width()):
         for y in range(-100, window_height + 100, big_empty.get_height()):
             aSurface = big_empty.copy() if random.random() <= 0.5 else big_mines.copy()
@@ -101,28 +103,25 @@ def main():
 
         for index, instruction in enumerate(instructions):
             window.blit(
-                git_blit(instruction, color=WHITE),
+                git_blit(instruction, color=WHITE, size=char_size),
                 (
                     left_margin,
                     center_page - char_height * (len(instructions) // 2 - index - 1),
                 ),
-                size=char_height,
             )
         window.blit(
-            git_blit("xXx", color=RED, bg_color=BLACK),
+            git_blit("xXx", color=RED, bg_color=BLACK, size=char_size),
             (
                 left_margin + char_width * 16,
                 center_page - char_height * (len(instructions) // 2 - 4),
             ),
-            size=char_height,
         )
         window.blit(
-            git_blit("=@=", color=[YELLOW, GREEN, YELLOW], bg_color=BLACK),
+            git_blit("=@=", color=[YELLOW, GREEN, YELLOW], bg_color=BLACK, size=char_size),
             (
                 left_margin + char_width * 18,
                 center_page - char_height * (len(instructions) // 2 - 5),
             ),
-            size=char_height,
         )
         pygame.display.flip()
 
@@ -133,12 +132,82 @@ def main():
                     pygame.quit()
                     exit()
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        pygame.quit()
-                        exit()
+                    # if event.key == pygame.K_ESCAPE:
+                    #     pygame.quit()
+                    #     exit()
                     anykey = True
 
-    def display_menu(menu, selection=0):
+    def get_settings():
+        with open('settings.json') as savefile:
+            setting = json.load(savefile)
+        return setting['music_volume'], setting['sound_volume'], setting['channel_width']
+
+    def save_settings(musicvolume = 100, soundvolume = 100, channelwidth = 9):
+        settings = {
+            'music_volume' : musicvolume,
+            'sound_volume' : soundvolume,
+            'channel_width' : channelwidth,
+        }
+        with open("settings.json", "w") as savefile:
+            json.dump(settings, savefile, indent=3)
+
+    def settings(musicvolume = 100, soundvolume = 100, channelwidth = 9):
+        
+        settings_menu = True
+        last_sel = 0
+        while settings_menu:
+            menu = [
+                f" MUSIC VOLUME: {musicvolume:03} ", 
+                f" SOUND VOLUME: {soundvolume:03} ", 
+                f" CHANNEL WIDTH: {channelwidth:02} ", 
+                "RESTORE DEFAULTS",
+                "SAVE", 
+                "CANCEL"
+            ]
+            selection, increment = display_menu(menu, selection = last_sel, container = "-+")
+            last_sel = selection
+            if selection == -1 or menu[selection] == "CANCEL":
+                return
+            if menu[selection] == "SAVE":
+                save_settings(
+                    musicvolume = musicvolume, 
+                    soundvolume = soundvolume, 
+                    channelwidth = channelwidth
+                )
+                return
+            elif menu[selection] == "RESTORE DEFAULTS":
+                musicvolume = 100
+                soundvolume = 100
+                channelwidth = 9
+            elif menu[selection][:14] == " CHANNEL WIDTH":
+                if increment == RIGHT:
+                    channelwidth += 1
+                elif increment == LEFT:
+                    channelwidth -= 1
+                channelwidth = int(max(min(channelwidth, 12), 1))
+            elif menu[selection][:13] == " MUSIC VOLUME":
+                if increment == RIGHT:
+                    musicvolume += 10
+                elif increment == LEFT:
+                    musicvolume -= 10
+                musicvolume = int(max(min(musicvolume, 100), 0))
+                pygame.mixer.music.set_volume(musicvolume / 100)
+            elif menu[selection][:13] == " SOUND VOLUME":
+                if increment == RIGHT:
+                    soundvolume += 10
+                elif increment == LEFT:
+                    soundvolume -= 10
+                soundvolume = int(max(min(soundvolume, 100), 0))
+                audio.powerup_sound.set_volume(soundvolume / 100)
+                audio.explosion_sound.set_volume(soundvolume / 100)
+                audio.big_explosion_sound.set_volume(soundvolume / 100)
+                audio.diving_sound.set_volume(soundvolume / 100)
+                audio.dying_sound.set_volume(soundvolume / 100)
+                audio.wave_sound.set_volume(soundvolume / 100)
+                audio.sonar_sound.set_volume(soundvolume / 100)
+                pygame.mixer.Sound.play(audio.sonar_sound)
+        
+    def display_menu(menu, selection=0, container = "[]"):
         while True:
             longest_line = (
                 max(len(menu[_]) for _ in range(len(menu))) + 2
@@ -150,20 +219,19 @@ def main():
 
             for i, item in enumerate(menu):
                 x, y = (
-                    window_width // 2 - char_width * len(item) / 2,
+                    window_width / 2 - char_width * len(item) / 2,
                     center_page + i * char_height - len(menu) * char_height / 2,
                 )
                 if i == selection:
                     window.blit(
-                        git_blit("[", color=WHITE, size=char_height),
-                        (window_width // 2 - char_width * longest_line / 2, y),
+                        git_blit(container[0], color=WHITE, size=char_height),
+                        (window_width / 2 - char_width * longest_line / 2, y),
                     )
                     window.blit(
-                        git_blit("]", color=WHITE, size=char_height),
+                        git_blit(container[1], color=WHITE, size=char_height),
                         (
-                            window_width // 2
-                            + char_width * longest_line / 2
-                            - char_width,
+                            window_width / 2
+                            + char_width * longest_line / 2,
                             y,
                         ),
                     )
@@ -179,15 +247,20 @@ def main():
                         exit()
                     elif event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_ESCAPE:
-                            menu = False
-                            pygame.quit()
-                            exit()
+                            return -1, None
+                            # menu = False
+                            # pygame.quit()
+                            # exit()
                         elif event.key == pygame.K_UP:
                             selection -= 1
                         elif event.key == pygame.K_DOWN:
                             selection += 1
-                        elif event.key == pygame.K_RETURN:
-                            return selection
+                        elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                            return selection, None
+                        elif event.key == pygame.K_RIGHT or event.key == pygame.K_EQUALS:
+                            return selection, RIGHT
+                        elif event.key == pygame.K_LEFT or event.key == pygame.K_MINUS:
+                            return selection, LEFT
                         anykey = True
 
     def process_events():
@@ -198,15 +271,24 @@ def main():
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    menu = ["CONTINUE", "INSTRUCTIONS", "QUIT"]
+                    menu = ["CONTINUE", "INSTRUCTIONS", "SETTINGS", "QUIT"]
                     start = False
                     while not start:
-                        selection = display_menu(menu)
+                        selection, _ = display_menu(menu)
 
+                        if selection == -1:
+                            selection = 3
                         if menu[selection] == "CONTINUE":
                             return
                         elif menu[selection] == "INSTRUCTIONS":
                             give_instructions()
+                        elif menu[selection] == "SETTINGS":
+                            musicvolume, soundvolume, channelwidth = get_settings()
+                            settings(
+                                musicvolume = musicvolume, 
+                                soundvolume = soundvolume, 
+                                channelwidth = channelwidth
+                            )
                         elif menu[selection] == "QUIT":
                             pygame.quit()
                             exit()
@@ -220,19 +302,38 @@ def main():
                     if game.level >= 5 and random.random() < 0.1:
                         game.plop(POWERUP)
                 elif event.key == pygame.K_SPACE or event.key == pygame.K_r:
-                    game.init()
+                    musicvolume, soundvolume, channelwidth = get_settings()
+                    #game = Game(char_width, char_height, field_width = channelwidth, restart_music = False)
+                    game.init(field_width = channelwidth)
+                    pygame.mixer.music.set_volume(musicvolume / 100)
+                    audio.powerup_sound.set_volume(soundvolume / 100)
+                    audio.explosion_sound.set_volume(soundvolume / 100)
+                    audio.big_explosion_sound.set_volume(soundvolume / 100)
+                    audio.diving_sound.set_volume(soundvolume / 100)
+                    audio.dying_sound.set_volume(soundvolume / 100)
+                    audio.wave_sound.set_volume(soundvolume / 100)
+                    audio.sonar_sound.set_volume(soundvolume / 100)
 
-    menu = ["START GAME", "INSTRUCTIONS", "QUIT"]
+    menu = ["START GAME", "INSTRUCTIONS", "SETTINGS", "QUIT"]
 
     start = False
 
     while not start:
-        selection = display_menu(menu)
+        selection, _ = display_menu(menu)
 
+        if selection == -1:
+            selection = 3
         if menu[selection] == "START GAME":
             start = True
         elif menu[selection] == "INSTRUCTIONS":
             give_instructions()
+        elif menu[selection] == "SETTINGS":
+            musicvolume, soundvolume, channelwidth = get_settings()
+            settings(
+                musicvolume = musicvolume, 
+                soundvolume = soundvolume, 
+                channelwidth = channelwidth
+            )
         elif menu[selection] == "QUIT":
             pygame.quit()
             exit()
@@ -242,8 +343,17 @@ def main():
             if cell in tile:
                 window.blit(tile[cell], (field_left + index * (3 * char_width), y))
 
-    game = Game(char_width, char_height)
-    game.init()
+    musicvolume, soundvolume, channelwidth = get_settings()
+    game = Game(char_width, char_height, field_width = channelwidth)
+    game.init(field_width = channelwidth)
+    pygame.mixer.music.set_volume(musicvolume / 100)
+    audio.powerup_sound.set_volume(soundvolume / 100)
+    audio.explosion_sound.set_volume(soundvolume / 100)
+    audio.big_explosion_sound.set_volume(soundvolume / 100)
+    audio.diving_sound.set_volume(soundvolume / 100)
+    audio.dying_sound.set_volume(soundvolume / 100)
+    audio.wave_sound.set_volume(soundvolume / 100)
+    audio.sonar_sound.set_volume(soundvolume / 100)
 
     base_line = window_height // 2
     field_left = (window_width // 2) - (game.field_width * 3 * char_width) // 2
@@ -252,10 +362,18 @@ def main():
     left_panel = field_left - char_width * 12
     river_halfheight = (window_height // 2) // char_height
 
+    mask = [None] * 3
+    for i in range(3):
+        mask[i] = [255 * (random.randint(0, 255) < game.fadein.value) for _ in range(game.field_width)]
+
     playing = True
     while playing:
         if True:
             window.fill(BLACK)
+            field_left = (window_width // 2) - (game.field_width * 3 * char_width) // 2 #gross
+            field_right = (window_width // 2) + (game.field_width * 3 * char_width) // 2
+            right_panel = field_right + char_width * 1
+            left_panel = field_left - char_width * 12
             pygame.draw.rect(
                 window, WHITE, (0, 0, window_width, window_height), width=2
             )
@@ -283,6 +401,17 @@ def main():
             draw_line(game.last_line, base_line + char_height + offset)
             draw_line(game.next_line, base_line - char_height + offset)
             draw_line(game.current_line, base_line + offset)
+
+            # if game.fadein.value != 0:
+            #     for i in range(3):
+            #         mask[i] = [100 + 150 * (random.randint(0, 200) < game.fadein.value) for _ in range(game.field_width)] if random.random() < .1 else mask[i]
+            #     for mask_line, const in enumerate([char_height + offset, -char_height + offset, offset]):
+            #         y = base_line + const
+            #         for index, cell in enumerate(mask[mask_line]):
+            #             faded_empty = tile[MASK].copy()
+            #             faded_empty.set_alpha(cell)
+            #             window.blit(faded_empty, (field_left + index * (3 * char_width), y))
+
 
             window.blit(
                 tile[game.player_anim.value],

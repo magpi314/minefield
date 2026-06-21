@@ -20,6 +20,7 @@ class Game(object):
         hit_points=100,
         level=0,
         msg="",
+        restart_music = True
     ):
         self.char_width = char_width
         self.char_height = char_height
@@ -44,13 +45,16 @@ class Game(object):
         self.last_hit = 0
         self.clock = pygame.time.Clock()
 
-        pygame.mixer.music.load("music/game_theme.wav")
-        pygame.mixer.music.play(-1)
-        pygame.mixer.music.set_volume(1.0)
+        if restart_music:
+            pygame.mixer.music.load("music/game_theme.wav")
+            pygame.mixer.music.play(-1)
 
-    def init(self):
+    def init(self, field_width = 9):
+        pygame.mixer.Channel(0).play(audio.wave_sound)
+        pygame.mixer.Channel(1).play(audio.sonar_sound)
+        self.field_width = field_width
         self.player_anim = PlayerAnimation(
-            self, "Player", [DEAD_PLAYER, EXPLOSION, DEBRIS], 20, 1, PLAYER
+            self, "Player", [DEAD_PLAYER, EXPLOSION, DEBRIS], 15, 1, PLAYER
         )
         self.floater_timer = Timer(self, 150)
         self.hp_color = TextColor(self, "hp_color", [RED, WHITE], 50, 2, WHITE)
@@ -70,30 +74,34 @@ class Game(object):
             self, "Floater color", [RED, WHITE], 20, math.inf, WHITE
         )
         self.title_shake = Shakes(self, "Title shake", self.char_width // 2, 80)
-        self.player_shake = Shakes(self, "Player shake", self.char_height // 2, 20)
+        self.player_shake = Shakes(self, "Player shake", self.char_height // 1, 20)
         self.offset = Move(
             self, "Offset", (-self.char_height, 0, self.char_height // 8), 1
         )
         self.hp_floater = Move(
             self, "HP Floater", (-self.char_height, -2 * self.char_height, -1), 5
         )
+        self.fadein = Move(
+            self, "Fade in", (255, 0, -15), 5
+        )
         self.animations = [
-            self.player_anim,  # PlayerAnimation
+            self.player_anim,    # PlayerAnimation
             self.floater_timer,  # Timer
             self.hp_color,
             self.go_color,
             self.msg_color,
             self.vd_color,
-            self.floater_color,  # TextColor
+            self.floater_color, # TextColor
             self.title_shake,
             self.player_shake,  # Shakes
             self.offset,
-            self.hp_floater,  # Move
+            self.hp_floater,  
+            self.fadein         # Move
         ]
 
         self.frame = 0
         self.last_advance = 0
-        self.current_position = 5
+        self.current_position = self.field_width // 2
         self.current_line = [EMPTY] * self.field_width
         self.last_line = [EMPTY] * self.field_width
         self.next_line = [random.randint(EMPTY, MINES) for _ in range(self.field_width)]
@@ -101,6 +109,7 @@ class Game(object):
         self.level = 0
         self.msg = ""
         self.last_hit = 0
+        self.fadein.start()
 
     def check_space(self):
         if self.current_line[self.current_position] == EMPTY:
@@ -156,6 +165,8 @@ class Game(object):
                 random.randint(EMPTY, MINES) for _ in range(self.field_width)
             ]
             self.level += 1
+            if self.level % 10 == 0:
+                pygame.mixer.Channel(2).play(audio.wave_sound)
             self.offset.start()
             self.check_space()
 
