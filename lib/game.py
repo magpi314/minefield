@@ -6,6 +6,8 @@ from .consts import *
 from .animations import *
 from . import audio
 
+DAM_MULTIPLIER = 2
+MINE_ODDS = [35, 50]
 
 class Game(object):
     def __init__(
@@ -116,7 +118,7 @@ class Game(object):
             self.msg = ""
             self.last_hit = 0
         elif self.current_line[self.current_position] == MINES:
-            damage = random.randint(0, 100) if self.hit_points > 0 else 0
+            damage = random.randint(1, min(int(self.hit_points * DAM_MULTIPLIER), 100)) if self.hit_points > 0 else 0
             self.hit_points -= damage
             self.last_hit = -damage
             self.floater_color.frames = [RED, WHITE]
@@ -161,8 +163,12 @@ class Game(object):
             self.last_advance = self.frame
             self.last_line = self.current_line
             self.current_line = self.next_line
-            self.next_line = [
-                random.randint(EMPTY, MINES) for _ in range(self.field_width)
+            weighted_list = [] # EMPTY, MINES
+            mineperc = (self.hit_points / (MINE_ODDS[1] - MINE_ODDS[0])) + MINE_ODDS[0]
+            weighted_list.extend([MINES] * int(mineperc))
+            weighted_list.extend([EMPTY] * (100 - int(mineperc)))
+            self.next_line = [        
+                random.choice(weighted_list) for _ in range(self.field_width)
             ]
             self.level += 1
             if self.level % 10 == 0:
